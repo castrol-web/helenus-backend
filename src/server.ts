@@ -12,7 +12,7 @@ dotenv.config();
 const app = express();
 //cross origin middleware 
 app.use(cors({
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173","https://helenus-z6fk.onrender.com"],
     methods: ['GET', 'PUT', 'DELETE', 'POST'],
 }));
 
