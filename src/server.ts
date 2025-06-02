@@ -20,7 +20,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-const PORT = process.env.PORT || 8050;
+const PORT = process.env.PORT || 10000;
 const mongooseUrl = process.env.MONGO_URI;
 //checking for mongoose url
 if (!mongooseUrl) {
