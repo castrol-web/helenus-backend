@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "dist/server.js",
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
     "dev": "nodemon --watch src --ext ts --exec ts-node src/server.ts"
   },
   "start": "node --max-old-space-size=512 ./dist/server.js",
