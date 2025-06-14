@@ -17,10 +17,6 @@ const applicationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Job',
   },
-  visa_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Visa',
-  },
   cv_file_url: {
     type: String,
   },
@@ -40,4 +36,4 @@ const applicationSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-export default mongoose.model('Application', applicationSchema);
+export default mongoose.model('JobApplication', applicationSchema);
