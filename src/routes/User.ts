@@ -194,6 +194,40 @@ router.post("/contact", async (req: Request, res: any) => {
     }
 });
 
+// GET /jobs - Return all jobs
+router.get("/jobs", async (req: Request, res: any) => {
+    try {
+        const Alljobs = await Job.find().sort({ createdAt: -1 });
+        if (!Alljobs) {
+            return res.status(404).json({ message: "no jobs found" })
+        }
+        const jobsPromise = Alljobs.map(async (job) => {
+            const fileKey = job.coverImage;
+            const signedUrl = fileKey ? await generateSignedUrl(fileKey) : null;
+            return {
+                _id: job._id,
+                title: job.title,
+                location: job.location,
+                region: job.region,
+                description: job.description,
+                industry: job.industry,
+                requirements: job.requirements,
+                employer_name: job.employer_name,
+                contract_duration: job.contract_duration,
+                salary: job.salary,
+                createdAt: job.createdAt,
+                updatedAt: job.updatedAt,
+                coverImage: signedUrl,
+            }
+        });
+        const jobs = await Promise.all(jobsPromise)
+        res.json(jobs);
+    } catch (err) {
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+
 //job application
 router.post('/job/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCount: 1 }, { name: 'passport_file', maxCount: 1 },]),
     async (req: Request, res: any) => {
