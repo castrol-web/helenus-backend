@@ -1,6 +1,7 @@
 import express from "express";
 import { Request } from 'express';
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import multer from "multer";
 import crypto from "crypto";
 import User from "../models/User";
@@ -8,6 +9,8 @@ import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import Job from "../models/Job";
 import Visa from "../models/Visa";
+import VisaApplication from "../models/VisaApplication";
+import JobApplication from "../models/JobApplication";
 dotenv.config();
 const router = express.Router();
 
@@ -107,6 +110,101 @@ router.post("/addjob", upload.single("coverImage"), async (req: Request, res: an
     }
 })
 
+// Helper to fetch all visa + job applications combined
+router.get('/applications', async (req, res) => {
+    try {
+        const [visaApps, jobApps] = await Promise.all([
+            VisaApplication.find().populate('visa_id user_id').sort({ submitted_at: -1 }),
+            JobApplication.find().populate('job_id user_id').sort({ submitted_at: -1 }),
+        ]);
+
+        const visaWithType = await Promise.all(
+            visaApps.map(async (app) => {
+                const appObj = app.toObject() as any; // or use an interface below
+                appObj.type = 'visa';
+
+                if (app.cv_file_url) {
+                    appObj.cv_file_url = await generateSignedUrl(app.cv_file_url);
+                }
+
+                if (app.passport_file_url) {
+                    appObj.passport_file_url = await generateSignedUrl(app.passport_file_url);
+                }
+
+                return appObj;
+            })
+        );
+
+        const jobWithType = await Promise.all(
+            jobApps.map(async (app) => {
+                const appObj = app.toObject() as any;
+                appObj.type = 'job';
+
+                if (app.cv_file_url) {
+                    appObj.cv_file_url = await generateSignedUrl(app.cv_file_url);
+                }
+
+                if (app.passport_file_url) {
+                    appObj.passport_file_url = await generateSignedUrl(app.passport_file_url);
+                }
+
+                return appObj;
+            })
+        );
+
+        const combined = [...visaWithType, ...jobWithType].sort(
+            (a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+        );
+
+        res.json(combined);
+    } catch (error) {
+        console.error('Error fetching applications:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+
+// Approve/Reject application by type and id
+router.patch('/application/:type/:id', async (req: Request, res: any) => {
+    const { type, id } = req.params;
+    const { status } = req.body;
+
+    if (!['visa', 'job'].includes(type)) {
+        return res.status(400).json({ message: 'Invalid application type' });
+    }
+
+    if (!['Pending', 'Approved', 'Rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status value' });
+    }
+
+    try {
+        let updatedApp;
+        if (type === 'visa') {
+            updatedApp = await VisaApplication.findByIdAndUpdate(
+                id,
+                { status },
+                { new: true }
+            );
+        } else {
+            updatedApp = await JobApplication.findByIdAndUpdate(
+                id,
+                { status },
+                { new: true }
+            );
+        }
+
+        if (!updatedApp) {
+            return res.status(404).json({ message: 'Application not found' });
+        }
+
+        res.json(updatedApp);
+    } catch (error) {
+        console.error('Error updating application:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 router.post("/addVisa", upload.single("coverImage"), async (req: Request, res: any) => {
     try {
         const { visa_type, country, requirements, processing_time, fee } = req.body;
@@ -145,6 +243,20 @@ router.post("/addVisa", upload.single("coverImage"), async (req: Request, res: a
     }
 })
 
+
+async function generateSignedUrl(coverImage?: string | null): Promise<string> {
+    if (!coverImage) {
+        throw new Error("Invalid image key provided")
+    }
+    const getObjectParams = {
+        Bucket: bucketName,
+        Key: coverImage,
+    }
+
+    const command = new GetObjectCommand(getObjectParams);
+    const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+    return url;
+}
 
 export default router;
 

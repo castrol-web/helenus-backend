@@ -235,6 +235,7 @@ router.post('/job/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCou
                 email,
                 phone,
                 job_id: req.params.id,
+                user_id: req.user._id,
                 cv_file_url: CvName,
                 passport_file_url: passportName,
             })
@@ -246,6 +247,7 @@ router.post('/job/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCou
         }
     });
 
+//visa application
 router.post('/visa/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCount: 1 }, { name: 'passport_file', maxCount: 1 },]),
     async (req: Request, res: any) => {
         try {
@@ -286,6 +288,7 @@ router.post('/visa/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCo
                 email,
                 phone,
                 visa_id: req.params.id,
+                user_id: req.user._id,
                 cv_file_url: CvName,
                 passport_file_url: passportName,
             })
@@ -296,6 +299,92 @@ router.post('/visa/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCo
             res.status(500).json({ message: 'An error occured during job application please try again later' });
         }
     });
+
+
+//view my applications
+router.get("/my-applications", authMiddleware, async (req: Request, res: any) => {
+    try {
+        const userId = req.user._id;
+
+        const jobApps = await JobApplication.find({ user_id: userId }).populate("job_id").lean();
+        const visaApps = await VisaApplication.find({ user_id: userId }).populate("visa_id").lean();
+
+        // 2. Process Job Applications
+        const jobPromises = jobApps.map(async (app) => {
+            const fileKey = app.cv_file_url || app.passport_file_url;
+            const documentUrl = fileKey ? await generateSignedUrl(fileKey) : null;
+
+            return {
+                id: app._id,
+                type: "Job",
+                applicantName: app.applicant_name,
+                email: app.email,
+                phone: app.phone,
+                status: app.status.toLowerCase(),
+                dateSubmitted: app.submitted_at,
+                referenceNumber: app._id.toString().slice(-6),
+                documentUrl,
+                job: app.job_id,
+            };
+        });
+
+        // 3. Process Visa Applications
+        const visaPromises = visaApps.map(async (app) => {
+            const fileKey = app.cv_file_url || app.passport_file_url;
+            const documentUrl = fileKey ? await generateSignedUrl(fileKey) : null;
+
+            return {
+                id: app._id,
+                type: "Visa",
+                applicantName: app.applicant_name,
+                email: app.email,
+                phone: app.phone,
+                status: app.status.toLowerCase(),
+                dateSubmitted: app.submitted_at,
+                referenceNumber: app._id.toString().slice(-6),
+                documentUrl,
+                visa: app.visa_id,
+            };
+        });
+
+        // 4. Wait for All Promises
+        const [jobs, visas] = await Promise.all([
+            Promise.all(jobPromises),
+            Promise.all(visaPromises),
+        ]);
+
+        // 5. Merge and Sort
+        const applications = [...jobs, ...visas].sort(
+            (a, b) => new Date(b.dateSubmitted).getTime() - new Date(a.dateSubmitted).getTime()
+        );
+
+        return res.status(201).json(applications);
+    } catch (error) {
+        console.error("Error fetching applications:", error);
+        res.status(500).json({ message: "An error occurred while fetching applications. Please try again later." });
+    }
+});
+
+//applicaton count for the user
+router.get("/myapplication/count", authMiddleware, async (req: Request, res: any) => {
+    try {
+        const userId = req.user._id;
+        if (!userId) {
+            return res.status(200).json({ job: 0, visa: 0, total: 0 });
+        }
+
+        const jobCount = await JobApplication.countDocuments({ user: userId, type: "job" });
+        const visaCount = await VisaApplication.countDocuments({ user: userId, type: "visa" });
+
+        res.status(200).json({
+            job: jobCount,
+            visa: visaCount,
+            total: jobCount + visaCount
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Failed to fetch application counts." });
+    }
+});
 
 async function generateSignedUrl(coverImage?: string | null): Promise<string> {
     if (!coverImage) {
