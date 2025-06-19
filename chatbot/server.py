@@ -35,7 +35,7 @@ def get_response_and_intent(user_input):
             return response, predicted_tag
 
     # fallback default response if no match found (shouldn't happen)
-    return "Sorry, I don't understand.", "fallback"
+    return "Sorry, I do not understand.", "fallback"
 
 
 @app.route('/chat', methods=['POST'])
