@@ -4,6 +4,7 @@ import json
 import pickle
 import random
 import os
+import numpy as np
 
 app = Flask(__name__)
 CORS(app)
@@ -19,20 +20,36 @@ with open(os.path.join(BASE_DIR, 'vectorizer.pkl'), 'rb') as f:
 with open(os.path.join(BASE_DIR, 'intent.json'), 'r') as f:
     intents = json.load(f)
 
-def get_response(user_input):
+def get_response_and_intent(user_input):
     X_vect = vectorizer.transform([user_input])
-    predicted_tag = model.predict(X_vect)[0]
+    probs = model.predict_proba(X_vect)[0]
+    confidence = np.max(probs)
+    predicted_tag = model.classes_[np.argmax(probs)]
+
+    if confidence < 0.1:  # threshold for fallback
+        predicted_tag = "fallback"
+
     for intent in intents['intents']:
         if intent['tag'] == predicted_tag:
-            return random.choice(intent['responses'])
-    return "Sorry, I don't understand."
+            response = random.choice(intent['responses'])
+            return response, predicted_tag
+
+    # fallback default response if no match found (shouldn't happen)
+    return "Sorry, I don't understand.", "fallback"
+
 
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.json
     user_input = data.get('message', '')
-    response = get_response(user_input)
-    return jsonify({'response': response})
+    response_text, intent_tag = get_response_and_intent(user_input)
+
+    # Optional logging
+    with open(os.path.join(BASE_DIR, 'chat_logs.txt'), 'a') as log_file:
+        log_file.write(f"User: {user_input}\nBot: {response_text}\nIntent: {intent_tag}\n\n")
+
+    return jsonify({'response': response_text, 'intent': intent_tag})
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))  # default to 5000 if not set

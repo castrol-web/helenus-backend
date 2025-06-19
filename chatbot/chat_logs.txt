@@ -1,0 +1,18 @@
+User: can i talk to a real agent
+Bot: For personalized help, message our agent on WhatsApp: +1234567890.
+
+User: when was helenus formed
+Bot: Hi there! Need help with visa or job info?
+
+User: visa
+Bot: The visa process usually involves submitting an application, required documents, and sometimes attending an interview. Let me know your visa type to provide details.
+
+User: educational
+Bot: Hi there! Need help with visa or job info?
+
+User: talk to agent
+Bot: Sure! You can contact our agent directly on WhatsApp at +1234567890.
+
+User: how many languages do you know
+Bot: Sure! We assist with all visa processes. Which visa type and country are you interested in?
+
