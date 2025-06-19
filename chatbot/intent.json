@@ -204,27 +204,6 @@
       ]
     },
     {
-      "tag": "ask_contact_agent",
-      "patterns": [
-        "Can I talk to a human agent?",
-        "I want to speak to support",
-        "contact customer service",
-        "agent phone number",
-        "help from a real person",
-        "Can I speak to someone?",
-        "Need to talk to your agent",
-        "Give me a number to call",
-        "I need real help",
-        "How can I talk to an agent?",
-        "I prefer talking to a person",
-        "Where can I find your contact?"
-      ],
-      "responses": [
-        "Sure! You can contact our agent directly on WhatsApp at +1234567890.",
-        "For personalized help, message our agent on WhatsApp: +1234567890."
-      ]
-    },
-    {
       "tag": "out_of_scope",
       "patterns": [
         "What's the weather today?",
@@ -261,3 +240,4 @@
     }
   ]
 }
+
