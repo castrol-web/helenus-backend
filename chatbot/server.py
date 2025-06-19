@@ -7,6 +7,7 @@ import os
 
 app = Flask(__name__)
 CORS(app)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 with open(os.path.join(BASE_DIR, 'model.pkl'), 'rb') as f:
@@ -34,4 +35,5 @@ def chat():
     return jsonify({'response': response})
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    port = int(os.environ.get("PORT", 5000))  # default to 5000 if not set
+    app.run(host="0.0.0.0", port=port)
