@@ -44,9 +44,9 @@ def chat():
     user_input = data.get('message', '')
     response_text, intent_tag = get_response_and_intent(user_input)
 
-    # Optional logging
-    with open(os.path.join(BASE_DIR, 'chat_logs.txt'), 'a') as log_file:
-        log_file.write(f"User: {user_input}\nBot: {response_text}\nIntent: {intent_tag}\n\n")
+    # # Optional logging
+    # with open(os.path.join(BASE_DIR, 'chat_logs.txt'), 'a') as log_file:
+    #     log_file.write(f"User: {user_input}\nBot: {response_text}\nIntent: {intent_tag}\n\n")
 
     return jsonify({'response': response_text, 'intent': intent_tag})
 
