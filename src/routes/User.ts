@@ -1,6 +1,6 @@
 import express from "express";
 import { Request, Response } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import multer from "multer";
@@ -99,6 +99,7 @@ router.post('/register', async (req: Request<registerProps>, res: any) => {
             userId: newUser._id,
             token: crypto.randomBytes(10).toString("hex")
         }).save();
+        console.log(token.token)
 
         // Send confirmation email
         await sendConfirmationMail({
@@ -116,7 +117,6 @@ router.post('/register', async (req: Request<registerProps>, res: any) => {
         });
     }
 });
-
 
 //user login
 router.post('/login', async (req: Request<loginProps>, res: any) => {
@@ -221,7 +221,7 @@ router.get("/jobs", async (req: Request, res: any) => {
             }
         });
         const jobs = await Promise.all(jobsPromise)
-        res.json(jobs);
+        res.status(200).json(jobs);
     } catch (err) {
         res.status(500).json({ error: "Server error" });
     }
@@ -229,7 +229,7 @@ router.get("/jobs", async (req: Request, res: any) => {
 
 
 //job application
-router.post('/job/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCount: 1 }, { name: 'passport_file', maxCount: 1 },]),
+router.post('/job/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCount: 1 }, { name: 'passport_file', maxCount: 1 },{ name: 'coverletter', maxCount: 1 }]),
     async (req: Request, res: any) => {
         try {
             const { applicant_name, email, phone } = req.body;
@@ -241,13 +241,15 @@ router.post('/job/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCou
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
             const cvFile = files['cv_file']?.[0];
             const passportFile = files['passport_file']?.[0];
+            const coverletterFile = files['coverletter']?.[0];
 
-            if (!cvFile || !passportFile) {
-                return res.status(400).json({ message: "Both CV and Passport files are required." });
+            if (!cvFile || !passportFile || !coverletterFile) {
+                return res.status(400).json({ message: "Both CV,Passport and cover letter files are required." });
             }
             //random file names
             const CvName = randomFileName();
             const passportName = randomFileName();
+            const coverletterName = randomFileName();
 
             //sending cv and passport to s3
             await s3.send(new PutObjectCommand({
@@ -255,6 +257,13 @@ router.post('/job/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCou
                 Key: CvName,
                 Body: cvFile.buffer,
                 ContentType: cvFile.mimetype,
+            }));
+
+            await s3.send(new PutObjectCommand({
+                Bucket: bucketName,
+                Key: coverletterName,
+                Body: coverletterFile.buffer,
+                ContentType: coverletterFile.mimetype,
             }));
 
             await s3.send(new PutObjectCommand({
@@ -272,6 +281,7 @@ router.post('/job/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCou
                 user_id: req.user._id,
                 cv_file_url: CvName,
                 passport_file_url: passportName,
+                coverletter: coverletterName
             })
             await newJobApplication.save();
             res.status(201).json({ message: "Job Application Successful" });
@@ -280,6 +290,38 @@ router.post('/job/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCou
             res.status(500).json({ message: 'An error occured during job application please try again later' });
         }
     });
+
+//verify email
+router.post("/verify-email", async (req: Request, res: any) => {
+    const { token } = req.body;
+
+    try {
+        const tokenDoc = await Token.findOne({ token });
+        if (!tokenDoc) {
+            return res.status(400).json({ message: "Invalid or expired token." });
+        }
+
+        const user = await User.findById(tokenDoc.userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({ message: "User already verified." });
+        }
+
+        user.isVerified = true;
+        await user.save();
+        await tokenDoc.deleteOne();
+
+        res.status(200).json({ message: "Email verified successfully" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Verification failed" });
+    }
+});
+
+
 
 //visa application
 router.post('/visa/:id', authMiddleware, upload.fields([{ name: 'cv_file', maxCount: 1 }, { name: 'passport_file', maxCount: 1 },]),

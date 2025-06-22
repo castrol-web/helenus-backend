@@ -22,7 +22,7 @@ export const transport = nodemailer.createTransport({
 });
 
 export const getMailOptions = (userEmail: string, userName: string, token: string) => {
-  const confirmationUrl = `${process.env.CLIENT_URL}users/verify-email?token=${token}`;
+  const confirmationUrl = `${process.env.CLIENT_URL}/verify-email?token=${token}`;
 
   return {
     from: `"Helenus Agency" <${user}>`,

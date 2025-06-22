@@ -27,6 +27,9 @@ const applicationSchema = new mongoose.Schema({
   passport_file_url: {
     type: String,
   },
+  coverletter: {
+    type: String,
+  },
   status: {
     type: String,
     enum: ['Pending', 'Approved', 'Rejected'],
